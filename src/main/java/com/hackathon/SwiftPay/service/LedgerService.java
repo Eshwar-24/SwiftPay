@@ -11,15 +11,11 @@ import com.hackathon.SwiftPay.repository.PaymentRepository;
 import com.hackathon.SwiftPay.repository.UserBalanceRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
-import org.springframework.kafka.annotation.RetryableTopic;
-import org.springframework.retry.annotation.Backoff;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.List;
 
 @Service
@@ -31,6 +27,9 @@ public class LedgerService {
     private final UserBalanceRepository userBalanceRepository;
     private final BalanceService balanceService;
     private final KafkaProducerService kafkaProducerService;
+
+    private static final int MAX_RETRIES = 3;
+    private static final long INITIAL_BACKOFF_MILLIS = 1000;
 
     public LedgerService(LedgerRepository ledgerRepository,
                         PaymentRepository paymentRepository,
@@ -44,12 +43,6 @@ public class LedgerService {
         this.kafkaProducerService = kafkaProducerService;
     }
 
-    @RetryableTopic(
-        attempts = "3",
-        backoff = @Backoff(delay = 1000, multiplier = 2.0),
-        autoCreateTopic = "false",
-        include = {PaymentException.class, Exception.class}
-    )
     @KafkaListener(topics = "${kafka.topic.payment-initiated:payment-initiated}",
                    groupId = "${spring.application.name:SwiftPay}")
     @Transactional
@@ -100,7 +93,7 @@ public class LedgerService {
             kafkaProducerService.sendPaymentFailed(payment, e.getMessage());
 
             // Rethrow to trigger retry mechanism
-            throw new PaymentException("Payment processing failed: " + e.getMessage(), e);
+            throw new PaymentException("Payment processing failed: " + e.getMessage());
         }
     }
 
@@ -172,4 +165,7 @@ public class LedgerService {
             .build();
     }
 }
+
+
+
 

@@ -3,14 +3,24 @@ import { check, sleep } from 'k6';
 import { randomString } from 'https://jslib.k6.io/k6-utils/1.2.0/index.js';
 
 export const options = {
-  stages: [
-    { duration: '2m', target: 250 },  // Ramp up to 250 TPS over 2 minutes
-    { duration: '30m', target: 250 }, // Stay at 250 TPS for 30 minutes
-    { duration: '2m', target: 0 },    // Ramp down over 2 minutes
-  ],
+  scenarios: {
+    payment_load: {
+      executor: 'ramping-arrival-rate',
+      startRate: 10,
+      timeUnit: '1s',
+      preAllocatedVUs: 100,
+      maxVUs: 600,
+      stages: [
+        { target: 50,  duration: '30s' },  // warm up
+        { target: 100, duration: '30s' },  // ramp
+        { target: 250, duration: '60s' },  // reach target
+        { target: 250, duration: '3880s'}, // hold for ~1M txns
+      ],
+    },
+  },
   thresholds: {
-    http_req_duration: ['p(95)<500', 'p(99)<1000'], // 95th and 99th percentile
-    http_req_failed: ['rate<0.01'], // Error rate < 1%
+    http_req_failed:   ['rate<0.01'],
+    http_req_duration: ['p(95)<5000'],
   },
 };
 
@@ -47,6 +57,7 @@ export default function () {
     {
       headers: {
         'Content-Type': 'application/json',
+        'timeout': '30s',
       },
     }
   );

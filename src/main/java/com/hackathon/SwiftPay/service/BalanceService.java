@@ -103,6 +103,7 @@ public class BalanceService {
             .userId(userId)
             .balance(BigDecimal.ZERO)
             .currency("USD")
+            .version(0L)
             .build();
         return userBalanceRepository.save(userBalance);
     }

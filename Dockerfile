@@ -1,4 +1,4 @@
-FROM eclipse-temurin:25-jdk-alpine
+FROM eclipse-temurin:21-jdk-alpine
 
 WORKDIR /app
 
@@ -8,7 +8,18 @@ COPY .mvn .mvn
 COPY pom.xml ./
 
 # Build dependencies (this allows Docker to cache the layer)
-RUN chmod +x ./mvnw && ./mvnw dependency:resolve
+# RUN chmod +x ./mvnw && ./mvnw dependency:resolve -U
+RUN chmod +x ./mvnw && \
+    for attempt in 1 2 3; do \
+        echo "Dependency resolution attempt $attempt..."; \
+        ./mvnw --settings .mvn/settings.xml dependency:resolve -DskipTests && break; \
+        if [ $attempt -lt 3 ]; then \
+            sleep $((attempt * 10)); \
+        else \
+            echo "Dependency resolution failed after 3 attempts"; \
+            exit 1; \
+        fi; \
+    done
 
 # Copy source code
 COPY src ./src
@@ -17,7 +28,7 @@ COPY src ./src
 RUN ./mvnw clean package -DskipTests
 
 # Create final image
-FROM eclipse-temurin:25-jre-alpine
+FROM eclipse-temurin:21-jre-alpine
 
 WORKDIR /app
 

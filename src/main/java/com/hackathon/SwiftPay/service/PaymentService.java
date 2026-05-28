@@ -47,10 +47,10 @@ public class PaymentService {
         // Check idempotency
         if (idempotencyService.isDuplicateTransaction(request.getTransactionId())) {
             log.warn("Duplicate transaction detected: {}", request.getTransactionId());
-            Optional<Payment> existing = paymentRepository.findByTransactionId(request.getTransactionId());
-            if (existing.isPresent()) {
-                return convertToResponse(existing.get());
-            }
+//            Optional<Payment> existing = paymentRepository.findByTransactionId(request.getTransactionId());
+//            if (existing.isPresent()) {
+//                return convertToResponse(existing.get());
+//            }
             throw new IdempotencyException("Transaction already processed within 24 hours");
         }
 
