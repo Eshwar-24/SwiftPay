@@ -1,0 +1,141 @@
+name: Build & Test SwiftPay
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: swiftpay
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      kafka:
+        image: confluentinc/cp-kafka:7.5.0
+        env:
+          KAFKA_BROKER_ID: 1
+          KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+          KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+          KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
+          KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+          KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+        options: >-
+          --health-cmd "kafka-broker-api-versions.sh --bootstrap-server kafka:9092"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 9092:9092
+
+      zookeeper:
+        image: confluentinc/cp-zookeeper:7.5.0
+        env:
+          ZOOKEEPER_CLIENT_PORT: 2181
+          ZOOKEEPER_TICK_TIME: 2000
+        ports:
+          - 2181:2181
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up JDK 25
+      uses: actions/setup-java@v3
+      with:
+        java-version: '25'
+        distribution: 'temurin'
+        cache: maven
+
+    - name: Build with Maven
+      run: |
+        cd SwiftPay
+        ./mvnw clean package -B
+
+    - name: Run Tests
+      run: |
+        cd SwiftPay
+        ./mvnw test -B
+
+    - name: Integration Tests
+      run: |
+        cd SwiftPay
+        ./mvnw verify -B
+      env:
+        SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/swiftpay
+        SPRING_DATASOURCE_USERNAME: postgres
+        SPRING_DATASOURCE_PASSWORD: password
+        SPRING_KAFKA_BOOTSTRAP_SERVERS: localhost:9092
+        SPRING_REDIS_HOST: localhost
+        SPRING_REDIS_PORT: 6379
+
+    - name: Build Docker Image
+      run: |
+        cd SwiftPay
+        docker build -t swiftpay:latest .
+
+    - name: Log Build Output
+      if: always()
+      run: |
+        cd SwiftPay
+        ls -la target/
+
+  code-quality:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up JDK 25
+      uses: actions/setup-java@v3
+      with:
+        java-version: '25'
+        distribution: 'temurin'
+        cache: maven
+
+    - name: Analyze Code Quality
+      run: |
+        cd SwiftPay
+        ./mvnw checkstyle:check -B
+
+  security-scan:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up JDK 25
+      uses: actions/setup-java@v3
+      with:
+        java-version: '25'
+        distribution: 'temurin'
+        cache: maven
+
+    - name: Check for Vulnerabilities
+      run: |
+        cd SwiftPay
+        ./mvnw dependency-check:check -B || true
+

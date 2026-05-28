@@ -1,0 +1,83 @@
+### Health Check
+GET http://localhost:8080/health
+
+### Initiate Payment - Success
+POST http://localhost:8080/v1/payments
+Content-Type: application/json
+
+{
+  "transactionId": "TXN-REST-001",
+  "senderId": "user1",
+  "receiverId": "user2",
+  "amount": 100.00,
+  "currency": "USD"
+}
+
+### Get Payment Status
+GET http://localhost:8080/v1/payments/TXN-REST-001/status
+
+### Get Transaction History
+GET http://localhost:8080/v1/payments/user/user1
+
+### Get Ledger History
+GET http://localhost:8080/v1/ledger/user/user1
+
+### Initiate Payment - Insufficient Funds
+POST http://localhost:8080/v1/payments
+Content-Type: application/json
+
+{
+  "transactionId": "TXN-REST-002",
+  "senderId": "user1",
+  "receiverId": "user2",
+  "amount": 999999.00,
+  "currency": "USD"
+}
+
+### Initiate Payment - Duplicate (Idempotency Test)
+POST http://localhost:8080/v1/payments
+Content-Type: application/json
+
+{
+  "transactionId": "TXN-REST-003",
+  "senderId": "user1",
+  "receiverId": "user2",
+  "amount": 50.00,
+  "currency": "USD"
+}
+
+### Initiate Payment - Duplicate Again (same transactionId)
+POST http://localhost:8080/v1/payments
+Content-Type: application/json
+
+{
+  "transactionId": "TXN-REST-003",
+  "senderId": "user1",
+  "receiverId": "user2",
+  "amount": 50.00,
+  "currency": "USD"
+}
+
+### Initiate Payment - Validation Error (negative amount)
+POST http://localhost:8080/v1/payments
+Content-Type: application/json
+
+{
+  "transactionId": "TXN-REST-004",
+  "senderId": "user1",
+  "receiverId": "user2",
+  "amount": -100.00,
+  "currency": "USD"
+}
+
+### Initiate Payment - Missing Required Field
+POST http://localhost:8080/v1/payments
+Content-Type: application/json
+
+{
+  "transactionId": "TXN-REST-005",
+  "senderId": "user1",
+  "amount": 100.00,
+  "currency": "USD"
+}
+
