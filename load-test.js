@@ -65,7 +65,7 @@ export default function () {
   check(paymentResponse, {
     'Payment initiated successfully': (r) => r.status === 201,
     'Response contains transaction ID': (r) => r.body.includes(transactionId),
-    'Response contains PENDING status': (r) => r.body.includes('PENDING'),
+    'Response contains PENDING status': (r) => r.body != null && r.body.includes('PENDING'),
   });
 
   // Check payment status
@@ -78,11 +78,12 @@ export default function () {
 
     check(statusResponse, {
       'Get status successful': (r) => r.status === 200,
-      'Status endpoint responds': (r) => r.body.length > 0,
+      'Status endpoint responds': (r) => r.body !== null && r.body !== undefined && r.body.length > 0,
     });
   }
 
   // Get transaction history
+  //is load test required
   sleep(0.05);
   const historyResponse = http.get(
     `${BASE_URL}/v1/ledger/user/${sender}`
@@ -90,7 +91,7 @@ export default function () {
 
   check(historyResponse, {
     'Get history successful': (r) => r.status === 200 || r.status === 404, // 404 if no history
-    'History endpoint responds': (r) => r.body.length > 0,
+    'History endpoint responds': (r) => r.body !== null && r.body !== undefined && r.body.length > 0,
   });
 
   sleep(0.1); // Delay between iterations

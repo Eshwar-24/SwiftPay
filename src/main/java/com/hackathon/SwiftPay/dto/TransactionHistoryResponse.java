@@ -19,6 +19,10 @@ public class TransactionHistoryResponse {
     private String userId;
     private BigDecimal currentBalance;
     private String currency;
+    private int page;
+    private int size;
+    private boolean hasNext;
+    private boolean hasPrevious;
     private List<Transaction> transactions;
 
     @Data

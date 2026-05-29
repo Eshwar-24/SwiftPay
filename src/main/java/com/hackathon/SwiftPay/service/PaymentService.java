@@ -39,46 +39,36 @@ public class PaymentService {
         this.balanceService = balanceService;
     }
 
-    @Transactional
     public PaymentResponse initiatePayment(PaymentRequest request) {
         log.info("Initiating payment: {} from {} to {}",
-            request.getTransactionId(), request.getSenderId(), request.getReceiverId());
-
-        // Check idempotency
+                request.getTransactionId(), request.getSenderId(), request.getReceiverId());
         if (idempotencyService.isDuplicateTransaction(request.getTransactionId())) {
             log.warn("Duplicate transaction detected: {}", request.getTransactionId());
-//            Optional<Payment> existing = paymentRepository.findByTransactionId(request.getTransactionId());
-//            if (existing.isPresent()) {
-//                return convertToResponse(existing.get());
-//            }
             throw new IdempotencyException("Transaction already processed within 24 hours");
         }
-
-        // Validate sender has sufficient balance
         balanceService.validateBalance(request.getSenderId(), request.getAmount());
-
-        // Create payment record with PENDING status
-        Payment payment = Payment.builder()
-            .transactionId(request.getTransactionId())
-            .senderId(request.getSenderId())
-            .receiverId(request.getReceiverId())
-            .amount(request.getAmount())
-            .currency(request.getCurrency())
-            .status(TransactionStatus.PENDING)
-            .createdAt(LocalDateTime.now())
-            .build();
-
-        Payment savedPayment = paymentRepository.save(payment);
-        log.info("Payment saved with PENDING status: {}", savedPayment.getId());
-
-        // Mark as processed in Redis
+        Payment savedPayment = savePayment(request);
         idempotencyService.markTransactionAsProcessed(request.getTransactionId());
-
-        // Emit PaymentInitiated event to Kafka
         kafkaProducerService.sendPaymentInitiated(savedPayment);
         log.info("PaymentInitiated event sent to Kafka for: {}", request.getTransactionId());
-
         return convertToResponse(savedPayment);
+    }
+
+    @Transactional
+    public Payment savePayment(PaymentRequest request) {
+        Payment payment = Payment.builder()
+                .transactionId(request.getTransactionId())
+                .senderId(request.getSenderId())
+                .receiverId(request.getReceiverId())
+                .amount(request.getAmount())
+                .currency(request.getCurrency())
+                .status(TransactionStatus.PENDING)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        Payment saved = paymentRepository.save(payment);
+        log.info("Payment saved with PENDING status: {}", saved.getId());
+        return saved;
     }
 
     public List<PaymentResponse> getTransactionHistory(String userId) {

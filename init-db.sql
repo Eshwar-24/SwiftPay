@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS ledger (
 CREATE INDEX idx_payment_id ON ledger(payment_id);
 CREATE INDEX idx_user_id ON ledger(user_id);
 CREATE INDEX idx_ledger_timestamp ON ledger(created_at);
+CREATE INDEX idx_ledger_user_created_at_desc ON ledger(user_id, created_at DESC);
 
 CREATE TABLE IF NOT EXISTS user_balance (
     id BIGSERIAL PRIMARY KEY,
